@@ -7,8 +7,9 @@ function doGet(e) {
     const action = String(e?.parameter?.action || 'health').toLowerCase();
     if (action === 'health') return json_({ok:true,action:'health',message:'SP PLN UIW NTB API aktif'});
     authorize_(e?.parameter?.key || e?.parameter?.api_key || '');
-    if (!SHEETS.includes(action.toUpperCase())) return json_({ok:false,error:'Action tidak dikenal'},400);
-    return json_({ok:true,action,data:readSheet_(action.toUpperCase(),false)});
+    const name = action.toUpperCase();
+    if (!SHEETS.includes(name)) return json_({ok:false,error:'Action tidak dikenal'},400);
+    return json_({ok:true,action,data:readSheet_(name,{public:true})});
   } catch (err) { return json_({ok:false,error:String(err.message || err)},500); }
 }
 
@@ -63,12 +64,12 @@ function adminSave_(body) {
 }
 
 function findMember_(id,password) {
-  const rows = readSheet_('ANGGOTA',true);
+  const rows = readSheet_('ANGGOTA');
   return rows.find(r => (String(r.ID_ANGGOTA||'').trim()===id || String(r.NIP||'').trim()===id) && String(r.PASSWORD||'')===password) || null;
 }
 
 function isAdmin_(id,nip) {
-  const rows = readSheet_('KONFIGURASI',false);
+  const rows = readSheet_('KONFIGURASI');
   const row = rows.find(r=>String(r.KEY||'').trim().toUpperCase()==='ADMIN_IDS');
   if (!row) return false;
   const ids = String(row.VALUE||'').split(',').map(x=>x.trim()).filter(Boolean);
@@ -78,8 +79,6 @@ function isAdmin_(id,nip) {
 function appendObject_(name,obj) {
   const sheet=getSpreadsheet_().getSheetByName(name); if(!sheet) throw new Error(`Sheet ${name} tidak ditemukan`);
   const headers=sheet.getRange(1,1,1,sheet.getLastColumn()).getDisplayValues()[0].map(h=>String(h).trim());
-  const keyHeader=headers.includes('ID_PENGADUAN')?'ID_PENGADUAN':headers.includes('ID_ANGGOTA')?'ID_ANGGOTA':'ID';
-  if (!obj[keyHeader] && keyHeader !== 'ID_PENGADUAN') throw new Error(`${keyHeader} wajib diisi`);
   sheet.appendRow(headers.map(h=>obj[h]??''));
 }
 function updateObject_(name,obj) {
@@ -90,8 +89,7 @@ function updateObject_(name,obj) {
   const key=String(obj[keyHeader]||'').trim(); if(!key) throw new Error(`${keyHeader} wajib diisi`);
   const idx=headers.indexOf(keyHeader); const rowIndex=values.slice(1).findIndex(r=>String(r[idx]||'').trim()===key)+2;
   if(rowIndex<2) throw new Error('Data tidak ditemukan');
-  const old=sheet.getRange(rowIndex,1,1,headers.length).getValues()[0];
-  sheet.getRange(rowIndex,1,1,headers.length).setValues([headers.map((h,i)=>Object.prototype.hasOwnProperty.call(obj,h)?obj[h]:old[i])]);
+  sheet.getRange(rowIndex,1,1,headers.length).setValues([headers.map(h=>obj[h]??sheet.getRange(rowIndex,headers.indexOf(h)+1).getValue())]);
 }
 function deleteObject_(name,obj) {
   const sheet=getSpreadsheet_().getSheetByName(name); if(!sheet) throw new Error(`Sheet ${name} tidak ditemukan`);
@@ -111,16 +109,16 @@ function getSpreadsheet_() {
   if (!SPREADSHEET_ID || SPREADSHEET_ID.indexOf('GANTI_') === 0) throw new Error('SPREADSHEET_ID belum dikonfigurasi');
   return SpreadsheetApp.openById(SPREADSHEET_ID);
 }
-function readSheet_(name,includePassword) {
+function readSheet_(name,options) {
   const sheet = getSpreadsheet_().getSheetByName(name);
   if (!sheet) throw new Error(`Sheet ${name} tidak ditemukan`);
   const values = sheet.getDataRange().getDisplayValues();
   if (values.length < 2) return [];
   const headers = values[0].map(h=>String(h).trim());
   return values.slice(1).filter(r=>r.some(v=>String(v).trim()!=='')).map(r=>{
-    const o=Object.fromEntries(headers.map((h,i)=>[h,r[i]??'']));
-    if (!includePassword) delete o.PASSWORD;
-    return o;
+    const out={};
+    headers.forEach((h,i)=>{if(!(options?.public && h==='PASSWORD')) out[h]=r[i]??'';});
+    return out;
   });
 }
 function appendRow_(name,row) {
