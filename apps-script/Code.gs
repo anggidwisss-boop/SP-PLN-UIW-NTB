@@ -1,156 +1,29 @@
-const SHEETS = ['ANGGOTA','BERITA','PENGUMUMAN','AGENDA','PENGURUS','DOKUMEN','PENGADUAN','KONFIGURASI'];
-const SPREADSHEET_ID = 'GANTI_DENGAN_SPREADSHEET_ID';
-const API_KEY = 'GANTI_DENGAN_API_KEY';
+const SHEETS=['ANGGOTA','BERITA','PENGUMUMAN','AGENDA','PENGURUS','DOKUMEN','PENGADUAN','KONFIGURASI'];
+const SPREADSHEET_ID='GANTI_DENGAN_SPREADSHEET_ID';
+const API_KEY='GANTI_DENGAN_API_KEY';
+const SESSION_TTL=21600;
 
-function doGet(e) {
-  try {
-    const action = String(e?.parameter?.action || 'health').toLowerCase();
-    if (action === 'health') return json_({ok:true,action:'health',message:'SP PLN UIW NTB API aktif'});
-    authorize_(e?.parameter?.key || e?.parameter?.api_key || '');
-    const name = action.toUpperCase();
-    if (!SHEETS.includes(name)) return json_({ok:false,error:'Action tidak dikenal'},400);
-    return json_({ok:true,action,data:readSheet_(name,{public:true})});
-  } catch (err) { return json_({ok:false,error:String(err.message || err)},500); }
-}
+function doGet(e){try{const action=String(e?.parameter?.action||'health').toLowerCase();if(action==='health')return json_({ok:true,action:'health',message:'SP PLN UIW NTB API aktif'});const member=getSessionMember_(e?.parameter?.token||'');if(!member)throw new Error('Sesi login tidak valid atau sudah kedaluwarsa');const name=action.toUpperCase();if(!SHEETS.includes(name))return json_({ok:false,error:'Action tidak dikenal'},400);return json_({ok:true,action,data:readSheet_(name,{public:true})});}catch(err){return json_({ok:false,error:String(err.message||err)},401)}}
 
-function doPost(e) {
-  try {
-    const body = JSON.parse(e?.postData?.contents || '{}');
-    authorize_(body.key || '');
-    const action = String(body.action || '').toLowerCase();
-    if (action === 'login') return login_(body);
-    if (action === 'admin_login') return adminLogin_(body);
-    if (action === 'pengaduan') return createComplaint_(body);
-    if (action === 'riwayat_pengaduan') return complaintHistory_(body);
-    if (action === 'admin_save') return adminSave_(body);
-    return json_({ok:false,error:'Action POST tidak dikenal'},400);
-  } catch (err) { return json_({ok:false,error:String(err.message || err)},500); }
-}
+function doPost(e){try{const body=JSON.parse(e?.postData?.contents||'{}');const action=String(body.action||'').toLowerCase();if(action==='login')return login_(body);authorize_(body.key||'');if(action==='admin_login')return adminLogin_(body);if(action==='pengaduan')return createComplaint_(body);if(action==='riwayat_pengaduan')return complaintHistory_(body);if(action==='admin_save')return adminSave_(body);return json_({ok:false,error:'Action POST tidak dikenal'},400)}catch(err){return json_({ok:false,error:String(err.message||err)},400)}}
 
-function login_(body) {
-  const id = String(body.id || '').trim();
-  const password = String(body.password || '');
-  if (!id || !password) return json_({ok:false,error:'ID dan password wajib diisi'},400);
-  const member = findMember_(id,password);
-  if (!member) return json_({ok:false,error:'ID/NIP atau password salah'},401);
-  const safe = {...member}; delete safe.PASSWORD;
-  return json_({ok:true,message:'Login berhasil',data:safe});
-}
+function login_(body){const id=String(body.id||'').trim(),password=String(body.password||'');if(!id||!password)return json_({ok:false,error:'ID dan password wajib diisi'},400);const member=findMember_(id,password);if(!member)return json_({ok:false,error:'ID/NIP atau password salah'},401);const token=createSession_(member.ID_ANGGOTA);const safe={...member};delete safe.PASSWORD;return json_({ok:true,message:'Login berhasil',token,data:safe})}
+function createSession_(id){const token=Utilities.getUuid()+'-'+Utilities.getUuid();CacheService.getScriptCache().put('SESSION_'+token,String(id),SESSION_TTL);return token}
+function getSessionMember_(token){token=String(token||'').trim();if(!token)return null;const id=CacheService.getScriptCache().get('SESSION_'+token);if(!id)return null;const rows=readSheet_('ANGGOTA');return rows.find(r=>String(r.ID_ANGGOTA||'').trim()===String(id).trim())||null}
 
-function adminLogin_(body) {
-  const id = String(body.id || '').trim();
-  const password = String(body.password || '');
-  if (!id || !password) return json_({ok:false,error:'ID dan password wajib diisi'},400);
-  const member = findMember_(id,password);
-  if (!member) return json_({ok:false,error:'ID/NIP atau password salah'},401);
-  if (!isAdmin_(member.ID_ANGGOTA, member.NIP)) return json_({ok:false,error:'Akun tidak memiliki akses admin'},403);
-  const safe = {...member}; delete safe.PASSWORD;
-  return json_({ok:true,message:'Login admin berhasil',data:safe});
-}
+function adminLogin_(body){const id=String(body.id||'').trim(),password=String(body.password||'');if(!id||!password)return json_({ok:false,error:'ID dan password wajib diisi'},400);const member=findMember_(id,password);if(!member)return json_({ok:false,error:'ID/NIP atau password salah'},401);if(!isAdmin_(member.ID_ANGGOTA,member.NIP))return json_({ok:false,error:'Akun tidak memiliki akses admin'},403);const safe={...member};delete safe.PASSWORD;return json_({ok:true,message:'Login admin berhasil',data:safe})}
 
-function createComplaint_(body) {
-  const id = String(body.id_anggota || '').trim();
-  const password = String(body.password || '');
-  const member = findMember_(id,password);
-  if (!member) return json_({ok:false,error:'Sesi anggota tidak valid'},401);
-  const kategori = String(body.kategori || '').trim();
-  const judul = String(body.judul || '').trim();
-  const isi = String(body.isi || '').trim();
-  if (!kategori || !judul || !isi) return json_({ok:false,error:'Kategori, judul, dan isi wajib diisi'},400);
-  appendRow_('PENGADUAN',[Utilities.getUuid(),member.ID_ANGGOTA,kategori,judul,isi,String(body.lampiran || ''),new Date(),'Diajukan','']);
-  return json_({ok:true,message:'Pengaduan berhasil diterima'});
-}
+function createComplaint_(body){const member=getSessionMember_(body.token);if(!member)return json_({ok:false,error:'Sesi anggota tidak valid'},401);const kategori=String(body.kategori||'').trim(),judul=String(body.judul||'').trim(),isi=String(body.isi||'').trim();if(!kategori||!judul||!isi)return json_({ok:false,error:'Kategori, judul, dan isi wajib diisi'},400);appendRow_('PENGADUAN',[Utilities.getUuid(),member.ID_ANGGOTA,kategori,judul,isi,String(body.lampiran||''),new Date(),'Diajukan','']);return json_({ok:true,message:'Pengaduan berhasil diterima'})}
+function complaintHistory_(body){const member=getSessionMember_(body.token);if(!member)return json_({ok:false,error:'Sesi anggota tidak valid'},401);const rows=readSheet_('PENGADUAN');return json_({ok:true,message:'Riwayat pengaduan',data:rows.filter(r=>String(r.ID_ANGGOTA||'').trim()===String(member.ID_ANGGOTA||'').trim())})}
 
-function complaintHistory_(body) {
-  const id = String(body.id_anggota || '').trim();
-  const password = String(body.password || '');
-  const member = findMember_(id,password);
-  if (!member) return json_({ok:false,error:'Sesi anggota tidak valid'},401);
-  const rows = readSheet_('PENGADUAN');
-  const mine = rows.filter(r=>String(r.ID_ANGGOTA||'').trim()===String(member.ID_ANGGOTA||'').trim());
-  return json_({ok:true,message:'Riwayat pengaduan',data:mine});
-}
-
-function adminSave_(body) {
-  const admin = findMember_(String(body.id || '').trim(),String(body.password || ''));
-  if (!admin || !isAdmin_(admin.ID_ANGGOTA,admin.NIP)) return json_({ok:false,error:'Akses admin ditolak'},403);
-  const sheetName = String(body.sheet || '').toUpperCase();
-  const op = String(body.op || '').toLowerCase();
-  if (!['BERITA','PENGUMUMAN','AGENDA','PENGURUS','DOKUMEN','PENGADUAN','ANGGOTA'].includes(sheetName)) return json_({ok:false,error:'Sheet tidak diizinkan'},400);
-  const record = body.record || {};
-  if (sheetName === 'PENGADUAN' && op === 'update') {
-    const status = String(record.STATUS || '').trim();
-    if (!['Diajukan','Diproses','Ditindaklanjuti','Selesai','Ditutup'].includes(status)) return json_({ok:false,error:'Status pengaduan tidak valid'},400);
-  }
-  if (op === 'append') { appendObject_(sheetName,record); return json_({ok:true,message:'Data ditambahkan'}); }
-  if (op === 'update') { updateObject_(sheetName,record); return json_({ok:true,message:'Data diperbarui'}); }
-  if (op === 'delete') { deleteObject_(sheetName,record); return json_({ok:true,message:'Data dihapus'}); }
-  return json_({ok:false,error:'Operasi admin tidak dikenal'},400);
-}
-
-function findMember_(id,password) {
-  const rows = readSheet_('ANGGOTA');
-  return rows.find(r => (String(r.ID_ANGGOTA||'').trim()===id || String(r.NIP||'').trim()===id) && String(r.PASSWORD||'')===password) || null;
-}
-
-function isAdmin_(id,nip) {
-  const rows = readSheet_('KONFIGURASI');
-  const row = rows.find(r=>String(r.KEY||'').trim().toUpperCase()==='ADMIN_IDS');
-  if (!row) return false;
-  const ids = String(row.VALUE||'').split(',').map(x=>x.trim()).filter(Boolean);
-  return ids.includes(String(id||'').trim()) || ids.includes(String(nip||'').trim());
-}
-
-function appendObject_(name,obj) {
-  const sheet=getSpreadsheet_().getSheetByName(name); if(!sheet) throw new Error(`Sheet ${name} tidak ditemukan`);
-  const headers=sheet.getRange(1,1,1,sheet.getLastColumn()).getDisplayValues()[0].map(h=>String(h).trim());
-  sheet.appendRow(headers.map(h=>obj[h]??''));
-}
-function updateObject_(name,obj) {
-  const sheet=getSpreadsheet_().getSheetByName(name); if(!sheet) throw new Error(`Sheet ${name} tidak ditemukan`);
-  const values=sheet.getDataRange().getDisplayValues(); if(values.length<2) throw new Error('Data belum tersedia');
-  const headers=values[0].map(h=>String(h).trim());
-  const keyHeader=headers.includes('ID_PENGADUAN')?'ID_PENGADUAN':headers.includes('ID_ANGGOTA')?'ID_ANGGOTA':'ID';
-  const key=String(obj[keyHeader]||'').trim(); if(!key) throw new Error(`${keyHeader} wajib diisi`);
-  const idx=headers.indexOf(keyHeader); const rowIndex=values.slice(1).findIndex(r=>String(r[idx]||'').trim()===key)+2;
-  if(rowIndex<2) throw new Error('Data tidak ditemukan');
-  sheet.getRange(rowIndex,1,1,headers.length).setValues([headers.map(h=>obj[h]??sheet.getRange(rowIndex,headers.indexOf(h)+1).getValue())]);
-}
-function deleteObject_(name,obj) {
-  const sheet=getSpreadsheet_().getSheetByName(name); if(!sheet) throw new Error(`Sheet ${name} tidak ditemukan`);
-  const values=sheet.getDataRange().getDisplayValues(); if(values.length<2) throw new Error('Data belum tersedia');
-  const headers=values[0].map(h=>String(h).trim());
-  const keyHeader=headers.includes('ID_PENGADUAN')?'ID_PENGADUAN':headers.includes('ID_ANGGOTA')?'ID_ANGGOTA':'ID';
-  const key=String(obj[keyHeader]||'').trim(); const idx=headers.indexOf(keyHeader);
-  const rowIndex=values.slice(1).findIndex(r=>String(r[idx]||'').trim()===key)+2;
-  if(rowIndex<2) throw new Error('Data tidak ditemukan');
-  sheet.deleteRow(rowIndex);
-}
-function authorize_(supplied) {
-  supplied = String(supplied || '');
-  if (!API_KEY || API_KEY.indexOf('GANTI_') === 0 || supplied !== API_KEY) throw new Error('Unauthorized / API_KEY belum dikonfigurasi');
-}
-function getSpreadsheet_() {
-  if (!SPREADSHEET_ID || SPREADSHEET_ID.indexOf('GANTI_') === 0) throw new Error('SPREADSHEET_ID belum dikonfigurasi');
-  return SpreadsheetApp.openById(SPREADSHEET_ID);
-}
-function readSheet_(name,options) {
-  const sheet = getSpreadsheet_().getSheetByName(name);
-  if (!sheet) throw new Error(`Sheet ${name} tidak ditemukan`);
-  const values = sheet.getDataRange().getDisplayValues();
-  if (values.length < 2) return [];
-  const headers = values[0].map(h=>String(h).trim());
-  return values.slice(1).filter(r=>r.some(v=>String(v).trim()!=='')).map(r=>{
-    const out={};
-    headers.forEach((h,i)=>{if(!(options?.public && h==='PASSWORD')) out[h]=r[i]??'';});
-    return out;
-  });
-}
-function appendRow_(name,row) {
-  const sheet=getSpreadsheet_().getSheetByName(name);
-  if(!sheet) throw new Error(`Sheet ${name} tidak ditemukan`);
-  sheet.appendRow(row);
-}
-function json_(payload,status) {
-  return ContentService.createTextOutput(JSON.stringify({...payload,status:status||200})).setMimeType(ContentService.MimeType.JSON);
-}
+function adminSave_(body){const admin=findMember_(String(body.id||'').trim(),String(body.password||''));if(!admin||!isAdmin_(admin.ID_ANGGOTA,admin.NIP))return json_({ok:false,error:'Akses admin ditolak'},403);const sheetName=String(body.sheet||'').toUpperCase(),op=String(body.op||'').toLowerCase();if(!['BERITA','PENGUMUMAN','AGENDA','PENGURUS','DOKUMEN','PENGADUAN','ANGGOTA'].includes(sheetName))return json_({ok:false,error:'Sheet tidak diizinkan'},400);const record=body.record||{};if(sheetName==='PENGADUAN'&&op==='update'){const status=String(record.STATUS||'').trim();if(!['Diajukan','Diproses','Ditindaklanjuti','Selesai','Ditutup'].includes(status))return json_({ok:false,error:'Status pengaduan tidak valid'},400)}if(op==='append'){appendObject_(sheetName,record);return json_({ok:true,message:'Data ditambahkan'})}if(op==='update'){updateObject_(sheetName,record);return json_({ok:true,message:'Data diperbarui'})}if(op==='delete'){deleteObject_(sheetName,record);return json_({ok:true,message:'Data dihapus'})}return json_({ok:false,error:'Operasi admin tidak dikenal'},400)}
+function findMember_(id,password){return readSheet_('ANGGOTA').find(r=>(String(r.ID_ANGGOTA||'').trim()===id||String(r.NIP||'').trim()===id)&&String(r.PASSWORD||'')===password)||null}
+function isAdmin_(id,nip){const row=readSheet_('KONFIGURASI').find(r=>String(r.KEY||'').trim().toUpperCase()==='ADMIN_IDS');if(!row)return false;const ids=String(row.VALUE||'').split(',').map(x=>x.trim()).filter(Boolean);return ids.includes(String(id||'').trim())||ids.includes(String(nip||'').trim())}
+function appendObject_(name,obj){const sheet=getSpreadsheet_().getSheetByName(name);if(!sheet)throw new Error(`Sheet ${name} tidak ditemukan`);const headers=sheet.getRange(1,1,1,sheet.getLastColumn()).getDisplayValues()[0].map(h=>String(h).trim());sheet.appendRow(headers.map(h=>obj[h]??''))}
+function updateObject_(name,obj){const sheet=getSpreadsheet_().getSheetByName(name);if(!sheet)throw new Error(`Sheet ${name} tidak ditemukan`);const values=sheet.getDataRange().getDisplayValues();if(values.length<2)throw new Error('Data belum tersedia');const headers=values[0].map(h=>String(h).trim()),keyHeader=headers.includes('ID_PENGADUAN')?'ID_PENGADUAN':headers.includes('ID_ANGGOTA')?'ID_ANGGOTA':'ID',key=String(obj[keyHeader]||'').trim();if(!key)throw new Error(`${keyHeader} wajib diisi`);const idx=headers.indexOf(keyHeader),rowIndex=values.slice(1).findIndex(r=>String(r[idx]||'').trim()===key)+2;if(rowIndex<2)throw new Error('Data tidak ditemukan');sheet.getRange(rowIndex,1,1,headers.length).setValues([headers.map(h=>obj[h]??sheet.getRange(rowIndex,headers.indexOf(h)+1).getValue())])}
+function deleteObject_(name,obj){const sheet=getSpreadsheet_().getSheetByName(name);if(!sheet)throw new Error(`Sheet ${name} tidak ditemukan`);const values=sheet.getDataRange().getDisplayValues();if(values.length<2)throw new Error('Data belum tersedia');const headers=values[0].map(h=>String(h).trim()),keyHeader=headers.includes('ID_PENGADUAN')?'ID_PENGADUAN':headers.includes('ID_ANGGOTA')?'ID_ANGGOTA':'ID',key=String(obj[keyHeader]||'').trim(),idx=headers.indexOf(keyHeader),rowIndex=values.slice(1).findIndex(r=>String(r[idx]||'').trim()===key)+2;if(rowIndex<2)throw new Error('Data tidak ditemukan');sheet.deleteRow(rowIndex)}
+function authorize_(supplied){supplied=String(supplied||'');if(!API_KEY||API_KEY.indexOf('GANTI_')===0||supplied!==API_KEY)throw new Error('Unauthorized / API_KEY belum dikonfigurasi')}
+function getSpreadsheet_(){if(!SPREADSHEET_ID||SPREADSHEET_ID.indexOf('GANTI_')===0)throw new Error('SPREADSHEET_ID belum dikonfigurasi');return SpreadsheetApp.openById(SPREADSHEET_ID)}
+function readSheet_(name,options){const sheet=getSpreadsheet_().getSheetByName(name);if(!sheet)throw new Error(`Sheet ${name} tidak ditemukan`);const values=sheet.getDataRange().getDisplayValues();if(values.length<2)return[];const headers=values[0].map(h=>String(h).trim());return values.slice(1).filter(r=>r.some(v=>String(v).trim()!=='')).map(r=>{const out={};headers.forEach((h,i)=>{if(!(options?.public&&h==='PASSWORD'))out[h]=r[i]??''});return out})}
+function appendRow_(name,row){const sheet=getSpreadsheet_().getSheetByName(name);if(!sheet)throw new Error(`Sheet ${name} tidak ditemukan`);sheet.appendRow(row)}
+function json_(payload,status){return ContentService.createTextOutput(JSON.stringify({...payload,status:status||200})).setMimeType(ContentService.MimeType.JSON)}
