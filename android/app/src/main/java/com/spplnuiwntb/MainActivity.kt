@@ -30,7 +30,9 @@ fun SPPlnWebApp() {
                 settings.domStorageEnabled = true
                 settings.allowFileAccess = true
                 settings.allowContentAccess = true
-                loadUrl("https://anggidwisss-boop.github.io/SP-PLN-UIW-NTB/")
+                settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
+                clearCache(false)
+                loadUrl("https://anggidwisss-boop.github.io/SP-PLN-UIW-NTB/?v=20260904")
             }
         }
     )
