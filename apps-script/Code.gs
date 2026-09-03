@@ -20,10 +20,8 @@ function doPost(e) {
     const action = String(body.action || '').toLowerCase();
     if (action === 'login') return login_(body);
     if (action === 'admin_login') return adminLogin_(body);
-    if (action === 'pengaduan') {
-      appendRow_('PENGADUAN',[Utilities.getUuid(),body.id_anggota||'',body.kategori||'',body.judul||'',body.isi||'',body.lampiran||'',new Date(),'Diajukan','']);
-      return json_({ok:true,message:'Pengaduan berhasil diterima'});
-    }
+    if (action === 'pengaduan') return createComplaint_(body);
+    if (action === 'riwayat_pengaduan') return complaintHistory_(body);
     if (action === 'admin_save') return adminSave_(body);
     return json_({ok:false,error:'Action POST tidak dikenal'},400);
   } catch (err) { return json_({ok:false,error:String(err.message || err)},500); }
@@ -50,6 +48,29 @@ function adminLogin_(body) {
   return json_({ok:true,message:'Login admin berhasil',data:safe});
 }
 
+function createComplaint_(body) {
+  const id = String(body.id_anggota || '').trim();
+  const password = String(body.password || '');
+  const member = findMember_(id,password);
+  if (!member) return json_({ok:false,error:'Sesi anggota tidak valid'},401);
+  const kategori = String(body.kategori || '').trim();
+  const judul = String(body.judul || '').trim();
+  const isi = String(body.isi || '').trim();
+  if (!kategori || !judul || !isi) return json_({ok:false,error:'Kategori, judul, dan isi wajib diisi'},400);
+  appendRow_('PENGADUAN',[Utilities.getUuid(),member.ID_ANGGOTA,kategori,judul,isi,String(body.lampiran || ''),new Date(),'Diajukan','']);
+  return json_({ok:true,message:'Pengaduan berhasil diterima'});
+}
+
+function complaintHistory_(body) {
+  const id = String(body.id_anggota || '').trim();
+  const password = String(body.password || '');
+  const member = findMember_(id,password);
+  if (!member) return json_({ok:false,error:'Sesi anggota tidak valid'},401);
+  const rows = readSheet_('PENGADUAN');
+  const mine = rows.filter(r=>String(r.ID_ANGGOTA||'').trim()===String(member.ID_ANGGOTA||'').trim());
+  return json_({ok:true,message:'Riwayat pengaduan',data:mine});
+}
+
 function adminSave_(body) {
   const admin = findMember_(String(body.id || '').trim(),String(body.password || ''));
   if (!admin || !isAdmin_(admin.ID_ANGGOTA,admin.NIP)) return json_({ok:false,error:'Akses admin ditolak'},403);
@@ -57,6 +78,10 @@ function adminSave_(body) {
   const op = String(body.op || '').toLowerCase();
   if (!['BERITA','PENGUMUMAN','AGENDA','PENGURUS','DOKUMEN','PENGADUAN','ANGGOTA'].includes(sheetName)) return json_({ok:false,error:'Sheet tidak diizinkan'},400);
   const record = body.record || {};
+  if (sheetName === 'PENGADUAN' && op === 'update') {
+    const status = String(record.STATUS || '').trim();
+    if (!['Diajukan','Diproses','Ditindaklanjuti','Selesai','Ditutup'].includes(status)) return json_({ok:false,error:'Status pengaduan tidak valid'},400);
+  }
   if (op === 'append') { appendObject_(sheetName,record); return json_({ok:true,message:'Data ditambahkan'}); }
   if (op === 'update') { updateObject_(sheetName,record); return json_({ok:true,message:'Data diperbarui'}); }
   if (op === 'delete') { deleteObject_(sheetName,record); return json_({ok:true,message:'Data dihapus'}); }
