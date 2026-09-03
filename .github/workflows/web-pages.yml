@@ -55,20 +55,57 @@ jobs:
           .modal-box{position:relative!important;z-index:100000!important;width:min(620px,calc(100vw - 32px))!important;max-height:90vh!important;overflow:auto!important;background:#fff!important;color:#24242a!important;border-radius:12px!important;padding:26px!important;box-shadow:0 30px 90px rgba(0,0,0,.45)!important}
           .modal-box input,.modal-box textarea,.modal-box select{color:#24242a!important;background:#fff!important;opacity:1!important;pointer-events:auto!important}
           .password-wrap{position:relative!important;width:100%!important}.password-wrap input{padding-right:54px!important}.password-toggle{position:absolute!important;right:8px!important;top:50%!important;transform:translateY(-50%)!important;border:0!important;background:#f4f4f5!important;color:#650016!important;border-radius:6px!important;width:42px!important;height:38px!important;cursor:pointer!important;font-size:18px!important;z-index:5!important}
+          .config-link{display:none!important}
           @media(max-width:600px){.hero:after{width:76px!important;height:76px!important;right:15px!important}.hero{padding-right:105px!important}.login{min-height:100vh!important}.login-shell{padding-bottom:28px!important}.login-layout{gap:14px!important}.login-visual{min-height:300px!important}.login-box{padding:24px 18px!important}.modal{padding:10px!important}.modal-box{width:calc(100vw - 20px)!important;max-height:88vh!important;padding:20px!important}}
           '''
           js = r'''
           (function(){
             var SERVER='https://script.google.com/macros/s/AKfycbxzz9H1szCdHnYrlHGyUHzIuY22OKuzx3I9z56anbLHCr5fPJZFX9yypC5KeW68QCBA/exec';
-            try{var q=new URLSearchParams(location.search).get('server');if(q)SERVER=q;}catch(e){}
-            localStorage.setItem('sp_url',SERVER);
-            function setupPassword(){var p=document.getElementById('loginPass');if(!p||p.dataset.toggleReady)return;p.dataset.toggleReady='1';var w=document.createElement('div');w.className='password-wrap';p.parentNode.insertBefore(w,p);w.appendChild(p);var b=document.createElement('button');b.type='button';b.className='password-toggle';b.setAttribute('aria-label','Tampilkan kata sandi');b.textContent='👁';b.onclick=function(){var show=p.type==='password';p.type=show?'text':'password';b.textContent=show?'🙈':'👁'};w.appendChild(b)}
-            function hideConfig(){var b=document.querySelector('.config-link');if(b)b.style.display='none';var m=document.getElementById('config');if(m)m.classList.add('hidden');var e=document.getElementById('loginError');if(e&&/Konfigurasi Server|konfigurasi server/.test(e.textContent))e.textContent=''}
-            window.api=function(action){return (async function(){var token=localStorage.getItem('sp_token')||'';if(!SERVER)throw Error('Server belum tersedia.');var u=new URL(SERVER);u.searchParams.set('action',action);u.searchParams.set('token',token);var r=await fetch(u);var j=await r.json();if(!j.ok)throw Error(j.error||'Sesi login tidak valid.');return j.data||[]})()};
-            window.login=async function(){$('loginError').textContent='';var id=$('loginId').value.trim(),pass=$('loginPass').value;if(!id||!pass){$('loginError').textContent='ID/NIP dan password wajib diisi.';return}var btn=$('loginBtn');btn.disabled=true;btn.textContent='MEMPROSES…';try{var r=await fetch(SERVER,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',id:id,password:pass})});var j=await r.json();if(!j.ok)throw Error(j.error||'Login gagal.');localStorage.setItem('sp_token',j.token||'');localStorage.setItem('sp_member',JSON.stringify(j.data||{}));member=j.data||null;hideConfig();enter()}catch(e){$('loginError').textContent=e.message}finally{btn.disabled=false;btn.textContent='LOGIN PORTAL'}};
-            window.submitComplaint=async function(){var msg=$('cmsg'),btn=$('complaintBtn'),title=$('ctitle').value.trim(),body=$('cbody').value.trim();if(!title||!body){msg.className='error';msg.textContent='Judul dan isi pengaduan wajib diisi.';return}msg.className='status';msg.textContent='Mengirim…';btn.disabled=true;try{var r=await fetch(SERVER,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'pengaduan',token:localStorage.getItem('sp_token')||'',id_anggota:member?.ID_ANGGOTA||'',kategori:$('cat').value,judul:title,isi:body,lampiran:''})});var j=await r.json();if(!j.ok)throw Error(j.error||'Gagal');msg.className='success';msg.textContent='✓ Pengaduan berhasil dikirim.';$('ctitle').value='';$('cbody').value=''}catch(e){msg.className='error';msg.textContent='✕ '+e.message}finally{btn.disabled=false}};
-            var oldLogout=window.logout;window.logout=function(){localStorage.removeItem('sp_token');if(oldLogout)oldLogout()};
-            function init(){setupPassword();hideConfig()};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();setTimeout(init,500);setTimeout(init,1500);
+            function setupPassword(){
+              var p=document.getElementById('loginPass');
+              if(!p||p.dataset.toggleReady)return;
+              p.dataset.toggleReady='1';
+              var w=document.createElement('div');w.className='password-wrap';
+              p.parentNode.insertBefore(w,p);w.appendChild(p);
+              var b=document.createElement('button');b.type='button';b.className='password-toggle';b.setAttribute('aria-label','Tampilkan kata sandi');b.textContent='👁';
+              b.onclick=function(){var show=p.type==='password';p.type=show?'text':'password';b.textContent=show?'🙈':'👁';b.setAttribute('aria-label',show?'Sembunyikan kata sandi':'Tampilkan kata sandi')};w.appendChild(b);
+            }
+            function hideConfig(){
+              var c=document.querySelector('.config-link');if(c)c.style.display='none';
+              var m=document.getElementById('config');if(m)m.classList.add('hidden');
+              try{localStorage.removeItem('sp_key');localStorage.setItem('sp_url',SERVER)}catch(e){}
+            }
+            function authLogin(){
+              var id=(document.getElementById('loginId')||{}).value||'';
+              var pass=(document.getElementById('loginPass')||{}).value||'';
+              var err=document.getElementById('loginError'),btn=document.getElementById('loginBtn');
+              id=id.trim();
+              if(!id||!pass){if(err)err.textContent='ID/NIP dan password wajib diisi.';return}
+              if(btn){btn.disabled=true;btn.textContent='MEMPROSES...'}
+              if(err)err.textContent='';
+              fetch(SERVER,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',id:id,password:pass})})
+                .then(function(r){return r.text()})
+                .then(function(t){var d;try{d=JSON.parse(t)}catch(e){throw new Error('Respons server tidak valid')};if(!d.ok||!d.token)throw new Error(d.error||'Login gagal');
+                  localStorage.setItem('sp_url',SERVER);localStorage.setItem('sp_token',d.token);localStorage.removeItem('sp_key');localStorage.setItem('sp_member',JSON.stringify(d.data||{}));
+                  window.member=d.data||{};window.data={};
+                  var login=document.getElementById('login'),app=document.getElementById('app');if(login)login.classList.add('hidden');if(app)app.classList.remove('hidden');
+                  if(typeof window.loadAll==='function')window.loadAll(); else if(typeof window.showHome==='function')window.showHome();
+                })
+                .catch(function(e){if(err)err.textContent=e.message||'Login gagal';})
+                .finally(function(){if(btn){btn.disabled=false;btn.textContent='LOGIN PORTAL'}});
+            }
+            function patchApi(){
+              window.api=function(action){
+                var token=localStorage.getItem('sp_token')||'';
+                if(!token)return Promise.reject(new Error('Silakan login terlebih dahulu.'));
+                return fetch(SERVER+'?action='+encodeURIComponent(action)+'&token='+encodeURIComponent(token),{cache:'no-store'})
+                  .then(function(r){return r.text()}).then(function(t){var d;try{d=JSON.parse(t)}catch(e){throw new Error('Respons server tidak valid')};if(!d.ok)throw new Error(d.error||'Gagal mengambil data');return d.data||[]});
+              };
+            }
+            function patchLogin(){window.login=authLogin;}
+            function init(){setupPassword();hideConfig();patchApi();patchLogin();}
+            if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){setTimeout(init,100)});else setTimeout(init,100);
+            setTimeout(init,1000);setTimeout(init,2500);
           })();
           '''
           for name in ('index.html','admin.html'):
