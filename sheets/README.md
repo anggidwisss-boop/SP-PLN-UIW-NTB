@@ -1,14 +1,14 @@
-# Struktur Google Sheets
+# Struktur Google Sheets — SP PLN UIW NTB
 
-Buat satu spreadsheet bernama `SP_PLN_UIW_NTB` dengan sheet berikut:
+Buat satu spreadsheet bernama `SP_PLN_UIW_NTB` dengan sheet berikut. Baris pertama adalah header.
 
-1. `ANGGOTA` — ID_Anggota, Nama, NIP, Unit, UP3, Jabatan, No_HP, Email, Status, Foto, Tanggal_Bergabung
-2. `BERITA` — ID, Judul, Isi, Foto, Tanggal, Penulis, Status_Publikasi
-3. `PENGUMUMAN` — ID, Judul, Isi, Tanggal, Status
-4. `AGENDA` — ID, Nama_Kegiatan, Tanggal, Waktu, Lokasi, Keterangan, Status
-5. `PENGURUS` — ID, Nama, Jabatan, Bidang, Unit, Foto, Kontak
-6. `DOKUMEN` — ID, Nama_Dokumen, Kategori, Tahun, Link_PDF, Keterangan
-7. `PENGADUAN` — ID_Pengaduan, ID_Anggota, Kategori, Judul, Isi, Lampiran, Tanggal, Status, Catatan_Pengurus
-8. `KONFIGURASI` — Key, Value
+1. `ANGGOTA` — ID_ANGGOTA, NAMA, NIP, UNIT, UP3, JABATAN, NO_HP, EMAIL, STATUS, FOTO
+2. `BERITA` — ID, JUDUL, ISI, FOTO, TANGGAL, PENULIS, STATUS_PUBLIKASI
+3. `PENGUMUMAN` — ID, JUDUL, ISI, TANGGAL, STATUS
+4. `AGENDA` — ID, NAMA_KEGIATAN, TANGGAL, WAKTU, LOKASI, KETERANGAN, STATUS
+5. `PENGURUS` — ID, NAMA, JABATAN, BIDANG, UNIT, FOTO, KONTAK
+6. `DOKUMEN` — ID, NAMA_DOKUMEN, KATEGORI, TAHUN, LINK_PDF, KETERANGAN
+7. `PENGADUAN` — ID_PENGADUAN, ID_ANGGOTA, KATEGORI, JUDUL, ISI, LAMPIRAN, TANGGAL, STATUS, CATATAN_PENGURUS
+8. `KONFIGURASI` — KEY, VALUE
 
 Gunakan data dummy selama pengembangan. Data pribadi asli tidak dimasukkan ke GitHub.
