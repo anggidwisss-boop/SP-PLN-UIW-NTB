@@ -59,27 +59,16 @@ jobs:
           '''
           js = r'''
           (function(){
-            function setupPassword(){
-              var p=document.getElementById('loginPass');
-              if(!p||p.dataset.toggleReady)return;
-              p.dataset.toggleReady='1';
-              var w=document.createElement('div');w.className='password-wrap';
-              p.parentNode.insertBefore(w,p);w.appendChild(p);
-              var b=document.createElement('button');b.type='button';b.className='password-toggle';b.setAttribute('aria-label','Tampilkan kata sandi');b.textContent='👁';
-              b.onclick=function(){var show=p.type==='password';p.type=show?'text':'password';b.textContent=show?'🙈':'👁';b.setAttribute('aria-label',show?'Sembunyikan kata sandi':'Tampilkan kata sandi')};w.appendChild(b);
-            }
-            function setupConfig(){
-              var modal=document.getElementById('config');
-              if(!modal)return;
-              var box=modal.querySelector('.modal-box');
-              if(box){box.addEventListener('click',function(e){e.stopPropagation()});}
-              modal.addEventListener('click',function(e){if(e.target===modal&&typeof closeConfig==='function')closeConfig()});
-              var btn=document.querySelector('.config-link');
-              if(btn){btn.type='button';btn.addEventListener('click',function(){setTimeout(function(){var x=document.getElementById('apiUrl');if(x){x.removeAttribute('readonly');x.disabled=false;x.focus()}var k=document.getElementById('apiKey');if(k){k.removeAttribute('readonly');k.disabled=false}},50)})}
-            }
-            function init(){setupPassword();setupConfig();}
-            if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
-            setTimeout(init,500);
+            var SERVER='https://script.google.com/macros/s/AKfycbxzz9H1szCdHnYrlHGyUHzIuY22OKuzx3I9z56anbLHCr5fPJZFX9yypC5KeW68QCBA/exec';
+            try{var q=new URLSearchParams(location.search).get('server');if(q)SERVER=q;}catch(e){}
+            localStorage.setItem('sp_url',SERVER);
+            function setupPassword(){var p=document.getElementById('loginPass');if(!p||p.dataset.toggleReady)return;p.dataset.toggleReady='1';var w=document.createElement('div');w.className='password-wrap';p.parentNode.insertBefore(w,p);w.appendChild(p);var b=document.createElement('button');b.type='button';b.className='password-toggle';b.setAttribute('aria-label','Tampilkan kata sandi');b.textContent='👁';b.onclick=function(){var show=p.type==='password';p.type=show?'text':'password';b.textContent=show?'🙈':'👁'};w.appendChild(b)}
+            function hideConfig(){var b=document.querySelector('.config-link');if(b)b.style.display='none';var m=document.getElementById('config');if(m)m.classList.add('hidden');var e=document.getElementById('loginError');if(e&&/Konfigurasi Server|konfigurasi server/.test(e.textContent))e.textContent=''}
+            window.api=function(action){return (async function(){var token=localStorage.getItem('sp_token')||'';if(!SERVER)throw Error('Server belum tersedia.');var u=new URL(SERVER);u.searchParams.set('action',action);u.searchParams.set('token',token);var r=await fetch(u);var j=await r.json();if(!j.ok)throw Error(j.error||'Sesi login tidak valid.');return j.data||[]})()};
+            window.login=async function(){$('loginError').textContent='';var id=$('loginId').value.trim(),pass=$('loginPass').value;if(!id||!pass){$('loginError').textContent='ID/NIP dan password wajib diisi.';return}var btn=$('loginBtn');btn.disabled=true;btn.textContent='MEMPROSES…';try{var r=await fetch(SERVER,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'login',id:id,password:pass})});var j=await r.json();if(!j.ok)throw Error(j.error||'Login gagal.');localStorage.setItem('sp_token',j.token||'');localStorage.setItem('sp_member',JSON.stringify(j.data||{}));member=j.data||null;hideConfig();enter()}catch(e){$('loginError').textContent=e.message}finally{btn.disabled=false;btn.textContent='LOGIN PORTAL'}};
+            window.submitComplaint=async function(){var msg=$('cmsg'),btn=$('complaintBtn'),title=$('ctitle').value.trim(),body=$('cbody').value.trim();if(!title||!body){msg.className='error';msg.textContent='Judul dan isi pengaduan wajib diisi.';return}msg.className='status';msg.textContent='Mengirim…';btn.disabled=true;try{var r=await fetch(SERVER,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'pengaduan',token:localStorage.getItem('sp_token')||'',id_anggota:member?.ID_ANGGOTA||'',kategori:$('cat').value,judul:title,isi:body,lampiran:''})});var j=await r.json();if(!j.ok)throw Error(j.error||'Gagal');msg.className='success';msg.textContent='✓ Pengaduan berhasil dikirim.';$('ctitle').value='';$('cbody').value=''}catch(e){msg.className='error';msg.textContent='✕ '+e.message}finally{btn.disabled=false}};
+            var oldLogout=window.logout;window.logout=function(){localStorage.removeItem('sp_token');if(oldLogout)oldLogout()};
+            function init(){setupPassword();hideConfig()};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();setTimeout(init,500);setTimeout(init,1500);
           })();
           '''
           for name in ('index.html','admin.html'):
