@@ -52,19 +52,19 @@ fun LoginScreen(onLogin: () -> Unit) {
     var id by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     Column(
-        Modifier.fillMaxSize().padding(24.dp),
+        modifier = Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.Center
     ) {
         Text("⚡ SP PLN UIW NTB", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         Text("Aplikasi resmi layanan anggota Serikat Pekerja", style = MaterialTheme.typography.bodyLarge)
-        Spacer(Modifier.height(28.dp))
-        OutlinedTextField(id, { id = it }, Modifier.fillMaxWidth(), label = { Text("ID Anggota / NIP") }, singleLine = true)
-        Spacer(Modifier.height(12.dp))
-        OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("Password") }, singleLine = true)
-        Spacer(Modifier.height(18.dp))
-        Button(onClick = onLogin, enabled = id.isNotBlank() && password.isNotBlank(), Modifier.fillMaxWidth()) { Text("MASUK") }
-        Spacer(Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(28.dp))
+        OutlinedTextField(value = id, onValueChange = { id = it }, modifier = Modifier.fillMaxWidth(), label = { Text("ID Anggota / NIP") }, singleLine = true)
+        Spacer(modifier = Modifier.height(12.dp))
+        OutlinedTextField(value = password, onValueChange = { password = it }, modifier = Modifier.fillMaxWidth(), label = { Text("Password") }, singleLine = true)
+        Spacer(modifier = Modifier.height(18.dp))
+        Button(onClick = onLogin, enabled = id.isNotBlank() && password.isNotBlank(), modifier = Modifier.fillMaxWidth()) { Text("MASUK") }
+        Spacer(modifier = Modifier.height(12.dp))
         Text("Versi 1.0 • UIW NTB", style = MaterialTheme.typography.bodySmall)
     }
 }
@@ -73,12 +73,24 @@ fun LoginScreen(onLogin: () -> Unit) {
 fun MainScreen(onLogout: () -> Unit) {
     var selected by remember { mutableIntStateOf(0) }
     val items = listOf("Beranda", "Berita", "Agenda", "Profil")
-    Scaffold(bottomBar = {
-        NavigationBar { items.forEachIndexed { index, label ->
-            NavigationBarItem(selected == index, { selected = index }, icon = {}, label = { Text(label) })
-        } }
-    }) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(20.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    Scaffold(
+        bottomBar = {
+            NavigationBar {
+                items.forEachIndexed { index, label ->
+                    NavigationBarItem(
+                        selected = selected == index,
+                        onClick = { selected = index },
+                        icon = {},
+                        label = { Text(label) }
+                    )
+                }
+            }
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier.fillMaxSize().padding(padding).padding(20.dp).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
             Text("SP PLN UIW NTB", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             Text("Pusat Informasi & Layanan Serikat Pekerja")
             when (selected) {
@@ -95,10 +107,12 @@ fun MainScreen(onLogout: () -> Unit) {
 fun Dashboard() {
     Text("Selamat datang, Anggota 👋", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        FeatureCard("📢", "Berita", Modifier.weight(1f)); FeatureCard("📅", "Agenda", Modifier.weight(1f))
+        FeatureCard("📢", "Berita", Modifier.weight(1f))
+        FeatureCard("📅", "Agenda", Modifier.weight(1f))
     }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        FeatureCard("📚", "Dokumen", Modifier.weight(1f)); FeatureCard("⚖️", "Advokasi", Modifier.weight(1f))
+        FeatureCard("📚", "Dokumen", Modifier.weight(1f))
+        FeatureCard("⚖️", "Advokasi", Modifier.weight(1f))
     }
     Text("Informasi Terbaru", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
     InfoCard("Selamat datang di SP PLN UIW NTB", "Pusat informasi organisasi, agenda, dokumen dan layanan anggota.")
@@ -107,23 +121,39 @@ fun Dashboard() {
 
 @Composable
 fun FeatureCard(icon: String, title: String, modifier: Modifier) {
-    Card(modifier, shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors()) { Column(Modifier.padding(16.dp)) { Text(icon, style = MaterialTheme.typography.headlineSmall); Text(title, fontWeight = FontWeight.SemiBold) } }
+    Card(modifier = modifier, shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(icon, style = MaterialTheme.typography.headlineSmall)
+            Text(title, fontWeight = FontWeight.SemiBold)
+        }
+    }
 }
 
 @Composable
-fun NewsPage() { Text("Berita & Pengumuman", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold); InfoCard("Informasi Organisasi", "Berita dan pengumuman terbaru akan terhubung ke Google Sheets pada tahap backend.") }
+fun NewsPage() {
+    Text("Berita & Pengumuman", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+    InfoCard("Informasi Organisasi", "Berita dan pengumuman terbaru akan terhubung ke Google Sheets pada tahap backend.")
+}
 
 @Composable
-fun AgendaPage() { Text("Agenda Kegiatan", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold); InfoCard("Agenda", "Rapat, sosialisasi, kegiatan organisasi, dan agenda anggota akan tampil di sini.") }
+fun AgendaPage() {
+    Text("Agenda Kegiatan", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+    InfoCard("Agenda", "Rapat, sosialisasi, kegiatan organisasi, dan agenda anggota akan tampil di sini.")
+}
 
 @Composable
 fun ProfilePage(onLogout: () -> Unit) {
     Text("Profil Anggota", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
     InfoCard("Data Anggota", "Nama, NIP, unit, jabatan, kontak dan status keanggotaan.")
-    OutlinedButton(onClick = onLogout, Modifier.fillMaxWidth()) { Text("KELUAR") }
+    OutlinedButton(onClick = onLogout, modifier = Modifier.fillMaxWidth()) { Text("KELUAR") }
 }
 
 @Composable
 fun InfoCard(title: String, body: String) {
-    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) { Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { Text(title, fontWeight = FontWeight.Bold); Text(body) } }
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+        Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(title, fontWeight = FontWeight.Bold)
+            Text(body)
+        }
+    }
 }
