@@ -35,7 +35,7 @@ fun SPPlnWebApp() {
                 settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
                 clearCache(true)
                 clearHistory()
-                loadUrl("https://anggidwisss-boop.github.io/SP-PLN-UIW-NTB/?server=" + android.net.Uri.encode(SERVER_URL) + "&v=20260904c")
+                loadUrl("https://anggidwisss-boop.github.io/SP-PLN-UIW-NTB/?server=" + android.net.Uri.encode(SERVER_URL) + "&v=20260904-old")
             }
         }
     )
