@@ -11,7 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 
-private const val SERVER_URL = "https://script.google.com/macros/s/AKfycbxzz9H1szCdHnYrlHGyUHzIuY22OKuzx3I9z56anbLHCr5fPJZFX9yypC5KeW68QCBA/exec"
+private const val SERVER_URL = "https://script.google.com/macros/s/AKfycby1tmRuI-WxPWSplFLMTnatSNYVgjhsVc7EZJ8RaYzO6NLtvx294cHy1ty-Vn4kyod8/exec"
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -35,7 +35,7 @@ fun SPPlnWebApp() {
                 settings.cacheMode = android.webkit.WebSettings.LOAD_NO_CACHE
                 clearCache(true)
                 clearHistory()
-                loadUrl("https://anggidwisss-boop.github.io/SP-PLN-UIW-NTB/?server=" + android.net.Uri.encode(SERVER_URL) + "&v=20260904b")
+                loadUrl("https://anggidwisss-boop.github.io/SP-PLN-UIW-NTB/?server=" + android.net.Uri.encode(SERVER_URL) + "&v=20260904c")
             }
         }
     )
